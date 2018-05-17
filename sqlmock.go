@@ -262,10 +262,13 @@ func (c *sqlmock) exec(query string, args []namedValue) (*ExpectedExec, error) {
 	var expected *ExpectedExec
 	var fulfilled int
 	var ok bool
+	var unlocked bool
 	for _, next := range c.expected {
+		unlocked = false
 		next.Lock()
 		if next.fulfilled() {
 			next.Unlock()
+			unlocked = true
 			fulfilled++
 			if !c.repeatable {
 				continue
@@ -285,7 +288,10 @@ func (c *sqlmock) exec(query string, args []namedValue) (*ExpectedExec, error) {
 				break
 			}
 		}
-		next.Unlock()
+
+		if !unlocked {
+			next.Unlock()
+		}
 	}
 	if expected == nil {
 		msg := "call to ExecQuery '%s' with args %+v was not expected"
