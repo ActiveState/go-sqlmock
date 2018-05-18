@@ -263,6 +263,7 @@ func (c *sqlmock) exec(query string, args []namedValue) (*ExpectedExec, error) {
 	var fulfilled int
 	var ok bool
 	var unlocked bool
+	var expectedUnlocked bool
 	for _, next := range c.expected {
 		unlocked = false
 		next.Lock()
@@ -285,6 +286,7 @@ func (c *sqlmock) exec(query string, args []namedValue) (*ExpectedExec, error) {
 		if exec, ok := next.(*ExpectedExec); ok {
 			if err := exec.attemptMatch(query, args); err == nil {
 				expected = exec
+				expectedUnlocked = unlocked
 				break
 			}
 		}
@@ -300,7 +302,10 @@ func (c *sqlmock) exec(query string, args []namedValue) (*ExpectedExec, error) {
 		}
 		return nil, fmt.Errorf(msg, query, args)
 	}
-	defer expected.Unlock()
+
+	if !expectedUnlocked {
+		defer expected.Unlock()
+	}
 
 	if !expected.queryMatches(query) {
 		return nil, fmt.Errorf("ExecQuery '%s', does not match regex '%s'", query, expected.sqlRegex.String())
